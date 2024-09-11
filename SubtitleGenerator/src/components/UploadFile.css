@@ -1,0 +1,119 @@
+/* Dropbox.css */
+
+/* Container for the dropbox */
+.dropbox-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+  }
+  
+  /* The dropbox area */
+  .dropbox {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 500px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Text inside the dropbox */
+  .dropbox p {
+    margin: 0;
+    color: #666;
+    font-size: 16px;
+  }
+  
+  /* File information section */
+  .file-info {
+    margin-top: 20px;
+    text-align: left;
+    color: #333;
+    max-width: 100%;
+    word-wrap: break-word;
+  }
+  
+  /* Styling for each line of file info */
+  .file-info p {
+    margin: 5px 0;
+  }
+  
+  /* Remove button styling */
+  .remove-button {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .remove-button:hover {
+    background-color: #c82333;
+  }
+  
+  /* Preview button styling */
+  .preview-button {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .preview-button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Responsive design for smaller screens */
+  @media (max-width: 768px) {
+    .dropbox {
+      height: 150px;
+    }
+  
+    .dropbox p {
+      font-size: 14px;
+    }
+  
+    .remove-button, .preview-button {
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .dropbox {
+      height: 120px;
+    }
+  
+    .dropbox p {
+      font-size: 12px;
+    }
+  
+    .remove-button, .preview-button {
+      padding: 3px 6px;
+      font-size: 12px;
+    }
+  
+    .file-info {
+      font-size: 14px;
+    }
+  }
+  
