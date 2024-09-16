@@ -21,10 +21,14 @@ const AudioPreview = () => {
   // Function to parse SRT file content
   const parseSRT = (srtText) => {
     return srtText
-      .trim() // Remove white spaces
-      .split('\n\n') // Split by double newline to get each block
+      .replace(/\r\n/g, '\n') // Replace all Windows-style newlines (\r\n) with Unix-style newlines (\n)
+      .replace(/\n\n+/g, '\n\n') // Replace multiple consecutive newlines with just two newlines
+      .trim() // Remove any leading/trailing white spaces
+      .split('\n\n') // Now safely split by two newlines
       .map((block) => {
         const [index, time, ...text] = block.split('\n');
+        console.log(block, "index No +", index); // Debugging
+  
         const [startTime, endTime] = time
           .split(' --> ') // Split the time string into start and end times
           .map((t) => {
@@ -35,27 +39,38 @@ const AudioPreview = () => {
               parseFloat(seconds.replace(',', '.'))
             );
           });
+  
         return {
           startTime,
           endTime,
-          text: text.join('\n'), // Join the text lines back together
+          text: text.join(' '), // Join the text lines back together
         };
       });
   };
+  
+
 
   useEffect(() => {
+
     let isMounted = true;
+    
     if (file) {
+
       const url = URL.createObjectURL(file);
       setAudioURL(url);
-  
+      console.log(isMounted)
+   
       // Fetch and parse the SRT file
       fetch('/subtitle.srt')
         .then(response => response.text())
         .then(text => {
-          if (isMounted) {
+
+          if (isMounted) { 
             const parsedSubtitles = parseSRT(text);
             setSubtitles(parsedSubtitles);
+            console.log("fetched" , parsedSubtitles);
+
+            
          
           }
         });
@@ -78,12 +93,12 @@ const AudioPreview = () => {
       });
   
       return () => {
+        isMounted = false;
+        URL.revokeObjectURL(url);
         if (waveSurferRef.current) {
-            waveSurferRef.current.destroy();
-          }
-          URL.revokeObjectURL(url);
-          isMounted = false;
-      };
+          waveSurferRef.current.destroy();
+           }
+        }
     }
   }, [file]);
 
@@ -92,14 +107,15 @@ const AudioPreview = () => {
 // This useEffect handles audio processing when subtitles are available
 useEffect(() => {
   if (subtitles.length > 0 && waveSurferRef.current) {
-    const handleAudioProcess = () => {
+      const handleAudioProcess = () => {
       const currentTime = waveSurferRef.current.getCurrentTime();
       const subtitle = subtitles.find(
-        (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
-      );
+          (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
+        );
 
       if (subtitle && subtitle.text !== currentSubtitle) {
         setCurrentSubtitle(subtitle.text);
+       
         
       }
     };
