@@ -43,7 +43,7 @@ const AudioPreview = () => {
         return {
           startTime,
           endTime,
-          text: text.join(' '), // Join the text lines back together
+          text: text.join('\n'), // Join the text lines back together
         };
       });
   };
@@ -70,8 +70,6 @@ const AudioPreview = () => {
             setSubtitles(parsedSubtitles);
             console.log("fetched" , parsedSubtitles);
 
-            
-         
           }
         });
   
@@ -93,7 +91,7 @@ const AudioPreview = () => {
       });
   
       return () => {
-        isMounted = false;
+        isMounted = false; 
         URL.revokeObjectURL(url);
         if (waveSurferRef.current) {
           waveSurferRef.current.destroy();
@@ -113,13 +111,13 @@ useEffect(() => {
           (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
         );
 
-      if (subtitle && subtitle.text !== currentSubtitle) {
-        setCurrentSubtitle(subtitle.text);
-       
-        
+      // Check if the current subtitle is new and concatenate it
+      if (subtitle && !currentSubtitle.includes(subtitle.text)) {
+        setCurrentSubtitle((prevSubtitle) => 
+          prevSubtitle ? `${prevSubtitle}\n${subtitle.text}` : subtitle.text
+        );
       }
     };
-    
 
     // Register audioprocess event listener
     waveSurferRef.current.on('audioprocess', handleAudioProcess);
@@ -132,6 +130,7 @@ useEffect(() => {
     };
   }
 }, [subtitles, currentSubtitle]);
+
 
 
   const handlePlayPause = () => {
