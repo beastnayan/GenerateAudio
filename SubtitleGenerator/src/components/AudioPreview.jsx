@@ -27,7 +27,6 @@ const AudioPreview = () => {
       .split('\n\n') // Now safely split by two newlines
       .map((block) => {
         const [index, time, ...text] = block.split('\n');
-        console.log(block, "index No +", index); // Debugging
   
         const [startTime, endTime] = time
           .split(' --> ') // Split the time string into start and end times
@@ -41,6 +40,7 @@ const AudioPreview = () => {
           });
   
         return {
+          index,
           startTime,
           endTime,
           text: text.join('\n'), // Join the text lines back together
@@ -58,7 +58,6 @@ const AudioPreview = () => {
 
       const url = URL.createObjectURL(file);
       setAudioURL(url);
-      console.log(isMounted)
    
       // Fetch and parse the SRT file
       fetch('/subtitle.srt')
@@ -68,7 +67,6 @@ const AudioPreview = () => {
           if (isMounted) { 
             const parsedSubtitles = parseSRT(text);
             setSubtitles(parsedSubtitles);
-            console.log("fetched" , parsedSubtitles);
 
           }
         });
@@ -105,16 +103,22 @@ const AudioPreview = () => {
 // This useEffect handles audio processing when subtitles are available
 useEffect(() => {
   if (subtitles.length > 0 && waveSurferRef.current) {
-      const handleAudioProcess = () => {
-      const currentTime = waveSurferRef.current.getCurrentTime();
-      const subtitle = subtitles.find(
-          (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
-        );
+    let previousSubtitleIndex = -1; 
 
-      // Check if the current subtitle is new and concatenate it
-      if (subtitle && !currentSubtitle.includes(subtitle.text)) {
-        setCurrentSubtitle((prevSubtitle) => 
-          prevSubtitle ? `${prevSubtitle}\n${subtitle.text}` : subtitle.text
+    const handleAudioProcess = () => {
+      const currentTime = waveSurferRef.current.getCurrentTime();
+
+      const subtitle = subtitles.find(
+        (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
+      );
+
+      // Only update if it's a new subtitle based on its index
+      if (subtitle && subtitle.index !== previousSubtitleIndex) {
+        previousSubtitleIndex = subtitle.index; // Update the previous subtitle index
+
+        // Concatenate new subtitle text
+        setCurrentSubtitle((prevSubtitle) =>
+          prevSubtitle ? `${prevSubtitle}  ${subtitle.text}` : subtitle.text
         );
       }
     };
@@ -129,8 +133,7 @@ useEffect(() => {
       }
     };
   }
-}, [subtitles, currentSubtitle]);
-
+}, [subtitles]);
 
 
   const handlePlayPause = () => {

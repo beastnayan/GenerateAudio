@@ -36,7 +36,7 @@ function UploadFile () {
   
     return (
       <div className="dropbox-container">
-        <h1>Upload File | |  New Prop</h1>
+        <h1>Upload File </h1>
         <h1>Nayan</h1>
         <div
           className="dropbox"
