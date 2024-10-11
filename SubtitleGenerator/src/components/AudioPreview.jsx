@@ -1,76 +1,59 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import './AudioPreview.css';
-import { useNavigate } from 'react-router-dom';
-
 
 const AudioPreview = () => {
   const location = useLocation();
   const { file } = location.state || {};
-
   const [audioURL, setAudioURL] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [subtitles, setSubtitles] = useState([]);
-  const [currentSubtitle, setCurrentSubtitle] = useState('');
+  const [printedLyrics, setPrintedLyrics] = useState([]); // Track printed lyrics
+  const [highlightedLyrics, setHighlightedLyrics] = useState(new Set()); // Use Set for unique highlights
   const waveformRef = useRef(null);
   const waveSurferRef = useRef(null);
   const navigate = useNavigate();
 
-
   // Function to parse SRT file content
   const parseSRT = (srtText) => {
     return srtText
-      .replace(/\r\n/g, '\n') // Replace all Windows-style newlines (\r\n) with Unix-style newlines (\n)
-      .replace(/\n\n+/g, '\n\n') // Replace multiple consecutive newlines with just two newlines
-      .trim() // Remove any leading/trailing white spaces
-      .split('\n\n') // Now safely split by two newlines
+      .replace(/\r\n/g, '\n')
+      .replace(/\n\n+/g, '\n\n')
+      .trim()
+      .split('\n\n')
       .map((block) => {
         const [index, time, ...text] = block.split('\n');
-  
-        const [startTime, endTime] = time
-          .split(' --> ') // Split the time string into start and end times
-          .map((t) => {
-            const [hours, minutes, seconds] = t.trim().split(':');
-            return (
-              parseFloat(hours) * 3600 +
-              parseFloat(minutes) * 60 +
-              parseFloat(seconds.replace(',', '.'))
-            );
-          });
-  
+        const [startTime, endTime] = time.split(' --> ').map((t) => {
+          const [hours, minutes, seconds] = t.trim().split(':');
+          return (
+            parseFloat(hours) * 3600 +
+            parseFloat(minutes) * 60 +
+            parseFloat(seconds.replace(',', '.'))
+          );
+        });
         return {
-          index,
+          index: parseInt(index), // Ensure index is a number
           startTime,
           endTime,
-          text: text.join('\n'), // Join the text lines back together
+          text: text.join('\n'),
         };
       });
   };
-  
-
 
   useEffect(() => {
-
     let isMounted = true;
-    
     if (file) {
-
       const url = URL.createObjectURL(file);
       setAudioURL(url);
-   
-      // Fetch and parse the SRT file
+
       fetch('/subtitle.srt')
         .then(response => response.text())
         .then(text => {
-
-          if (isMounted) { 
-            const parsedSubtitles = parseSRT(text);
-            setSubtitles(parsedSubtitles);
-
-          }
+          const parsedSubtitles = parseSRT(text);
+          setSubtitles(parsedSubtitles);
         });
-  
+
       // Initialize WaveSurfer
       waveSurferRef.current = WaveSurfer.create({
         container: waveformRef.current,
@@ -81,60 +64,78 @@ const AudioPreview = () => {
         height: 50,
         width: 1100,
       });
-  
       waveSurferRef.current.load(url);
-  
+
       waveSurferRef.current.on('ready', () => {
         waveSurferRef.current.play();
       });
-  
+
       return () => {
-        isMounted = false; 
+        isMounted = false;
         URL.revokeObjectURL(url);
         if (waveSurferRef.current) {
           waveSurferRef.current.destroy();
-           }
         }
+      };
     }
   }, [file]);
 
+  useEffect(() => {
+    if (subtitles.length > 0 && waveSurferRef.current) {
+      let previousSubtitleIndex = -1;
 
-  
-// This useEffect handles audio processing when subtitles are available
-useEffect(() => {
-  if (subtitles.length > 0 && waveSurferRef.current) {
-    let previousSubtitleIndex = -1; 
-
-    const handleAudioProcess = () => {
-      const currentTime = waveSurferRef.current.getCurrentTime();
-
-      const subtitle = subtitles.find(
-        (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
-      );
-
-      // Only update if it's a new subtitle based on its index
-      if (subtitle && subtitle.index !== previousSubtitleIndex) {
-        previousSubtitleIndex = subtitle.index; // Update the previous subtitle index
-
-        // Concatenate new subtitle text
-        setCurrentSubtitle((prevSubtitle) =>
-          prevSubtitle ? `${prevSubtitle}  ${subtitle.text}` : subtitle.text
+      const handleAudioProcess = () => {
+        const currentTime = waveSurferRef.current.getCurrentTime();
+        const subtitle = subtitles.find(
+          (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
         );
-      }
-    };
 
-    // Register audioprocess event listener
-    waveSurferRef.current.on('audioprocess', handleAudioProcess);
+        if (subtitle && subtitle.index !== previousSubtitleIndex) {
+          previousSubtitleIndex = subtitle.index;
 
-    // Clean up the listener when the component unmounts or subtitles change
+          // Concatenate new subtitle text
+          setPrintedLyrics((prevSubtitle) =>
+            prevSubtitle.some(item => item.id === subtitle.index && item.text === subtitle.text)
+              ? prevSubtitle
+              : [...prevSubtitle, { id: subtitle.index, text: subtitle.text }]
+          );
+        }
+      };
+
+      waveSurferRef.current.on('audioprocess', handleAudioProcess);
+
+      return () => {
+        if (waveSurferRef.current) {
+          waveSurferRef.current.un('audioprocess', handleAudioProcess);
+        }
+      };
+    }
+  }, [subtitles]);
+
+  // Handle user click on the waveform to highlight printed lyrics
+  const handleWaveformClick = () => {
+    const currentTime = waveSurferRef.current.getCurrentTime();
+    const clickedSubtitle = subtitles.find(
+      (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
+    );
+
+    if (clickedSubtitle && printedLyrics.some(item => item.id === clickedSubtitle.index && item.text === clickedSubtitle.text)) {
+      // Highlight the printed lyric by adding to the Set
+      setHighlightedLyrics(prev => new Set(prev).add(clickedSubtitle.text));
+    }
+  };
+
+  useEffect(() => {
+    if (waveSurferRef.current) {
+      // Register click listener for the waveform
+      waveformRef.current.addEventListener('click', handleWaveformClick);
+    }
     return () => {
-      if (waveSurferRef.current) {
-        waveSurferRef.current.un('audioprocess', handleAudioProcess);
+      if (waveformRef.current) {
+        waveformRef.current.removeEventListener('click', handleWaveformClick);
       }
     };
-  }
-}, [subtitles]);
-
+  }, [printedLyrics]);
 
   const handlePlayPause = () => {
     if (waveSurferRef.current) {
@@ -147,7 +148,6 @@ useEffect(() => {
     navigate('/', { state: { file } });
   };
 
-
   return (
     <div className="preview-container">
       <h1>Audio Preview</h1>
@@ -157,7 +157,7 @@ useEffect(() => {
       </button>
 
       <button onClick={backButton}>
-       Back
+        Back
       </button>
 
       {file ? (
@@ -166,15 +166,20 @@ useEffect(() => {
             <source src={audioURL} type={file.type} />
             Your browser does not support the audio element.
           </audio>
-          <div className="waveform" ref={waveformRef} />
-          <div className="lyrics-container">
-            <textarea
-              className="lyrics-box"
-              placeholder="Lyrics will appear here..."
-              readOnly
-              value={currentSubtitle}
-            />
-          </div>
+          <div className="waveform" ref={waveformRef} style={{ cursor: 'pointer' }} />
+          <div
+            className="lyrics-box"
+            contentEditable={true} // Allow editing for styling
+            dangerouslySetInnerHTML={{
+              __html: printedLyrics
+                .map((lyric) =>
+                  highlightedLyrics.has(lyric.text)
+                    ? `<span style="color: red;">${lyric.text}</span>`
+                    : lyric.text
+                )
+                .join('<br />'), // Join with line breaks
+            }}
+          />
         </>
       ) : (
         <p>No audio file selected</p>
@@ -183,7 +188,4 @@ useEffect(() => {
   );
 };
 
-
-
-export default  AudioPreview;
-    
+export default AudioPreview;
