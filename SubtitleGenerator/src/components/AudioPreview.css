@@ -82,3 +82,17 @@
     }
   }
   
+
+  /*   waveSurferRef.current = WaveSurfer.create({
+        container: waveformRef.current,
+        waveColor: '#ccc',
+        progressColor: '#007bff',
+        cursorColor: '#333',
+        responsive: true,
+        height: 50,
+        width: 1100,
+      });
+      
+      
+      
+      */

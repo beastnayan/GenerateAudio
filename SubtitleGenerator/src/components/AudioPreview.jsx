@@ -10,7 +10,7 @@ const AudioPreview = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [subtitles, setSubtitles] = useState([]);
   const [printedLyrics, setPrintedLyrics] = useState([]); // Track printed lyrics
-  const [highlightedLyrics, setHighlightedLyrics] = useState(new Set()); // Use Set for unique highlights
+  const [highlightedLyrics, setHighlightedLyrics] = useState([]); // Use array for highlights
   const waveformRef = useRef(null);
   const waveSurferRef = useRef(null);
   const navigate = useNavigate();
@@ -36,13 +36,12 @@ const AudioPreview = () => {
           index: parseInt(index), // Ensure index is a number
           startTime,
           endTime,
-          text: text.join('\n'),
+          text: text.join(' '), // Join subtitles into one line
         };
       });
   };
 
   useEffect(() => {
-    let isMounted = true;
     if (file) {
       const url = URL.createObjectURL(file);
       setAudioURL(url);
@@ -64,6 +63,7 @@ const AudioPreview = () => {
         height: 50,
         width: 1100,
       });
+      
       waveSurferRef.current.load(url);
 
       waveSurferRef.current.on('ready', () => {
@@ -71,7 +71,6 @@ const AudioPreview = () => {
       });
 
       return () => {
-        isMounted = false;
         URL.revokeObjectURL(url);
         if (waveSurferRef.current) {
           waveSurferRef.current.destroy();
@@ -90,15 +89,16 @@ const AudioPreview = () => {
           (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
         );
 
-        if (subtitle && subtitle.index !== previousSubtitleIndex) {
-          previousSubtitleIndex = subtitle.index;
+        if (subtitle) {
+          
+          if (subtitle.index === subtitles.length) {
+            setPrintedLyrics([]); 
+          } else if (subtitle.index !== previousSubtitleIndex) {
+            previousSubtitleIndex = subtitle.index;
 
-          // Concatenate new subtitle text
-          setPrintedLyrics((prevSubtitle) =>
-            prevSubtitle.some(item => item.id === subtitle.index && item.text === subtitle.text)
-              ? prevSubtitle
-              : [...prevSubtitle, { id: subtitle.index, text: subtitle.text }]
-          );
+            // Print all subtitles from index 1 to current index
+            setPrintedLyrics(subtitles.slice(0, subtitle.index));
+          }
         }
       };
 
@@ -119,9 +119,15 @@ const AudioPreview = () => {
       (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
     );
 
-    if (clickedSubtitle && printedLyrics.some(item => item.id === clickedSubtitle.index && item.text === clickedSubtitle.text)) {
-      // Highlight the printed lyric by adding to the Set
-      setHighlightedLyrics(prev => new Set(prev).add(clickedSubtitle.text));
+    if (clickedSubtitle) {
+      // Reset printed lyrics and only show clicked index
+      setPrintedLyrics([clickedSubtitle]);
+      // Highlight the printed lyric by adding to the array
+      setHighlightedLyrics((prevHighlight) =>
+        prevHighlight.includes(clickedSubtitle.index)
+          ? prevHighlight // Don't add duplicate highlights
+          : [...prevHighlight, clickedSubtitle.index] // Add the new highlight
+      );
     }
   };
 
@@ -167,19 +173,18 @@ const AudioPreview = () => {
             Your browser does not support the audio element.
           </audio>
           <div className="waveform" ref={waveformRef} style={{ cursor: 'pointer' }} />
-          <div
-            className="lyrics-box"
-            contentEditable={true} // Allow editing for styling
-            dangerouslySetInnerHTML={{
-              __html: printedLyrics
-                .map((lyric) =>
-                  highlightedLyrics.has(lyric.text)
-                    ? `<span style="color: red;">${lyric.text}</span>`
-                    : lyric.text
-                )
-                .join('<br />'), // Join with line breaks
-            }}
-          />
+          <div className='lyrics-box'>
+            {printedLyrics.map((lyrics, index) => (
+              <span key={index}>
+                {highlightedLyrics.includes(lyrics.id) ? (
+                  <span style={{ color: 'red' }}>{lyrics.text}</span>
+                ) : (
+                  lyrics.text
+                )}
+                <br />
+              </span>
+            ))}
+          </div>
         </>
       ) : (
         <p>No audio file selected</p>
